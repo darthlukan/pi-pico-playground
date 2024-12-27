@@ -1,28 +1,26 @@
 #include "pico/stdlib.h"
 
-void led_on(uint pin) {
-        gpio_put(pin, true);
+#ifndef LED_DELAY_MS
+#define LED_DELAY_MS 250
+#endif
+
+void pico_led_init(void) {
+#ifdef PICO_DEFAULT_LED_PIN
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+#endif
 }
 
-void led_off(uint pin) {
-        gpio_put(pin, false);
+void pico_led_toggle(bool led_on) {
+        gpio_put(PICO_DEFAULT_LED_PIN, led_on);
 }
 
 int main() {
-    const uint onboard_led_pin = 25;
-    const uint offboard_led_pin = 16;
-    gpio_init(onboard_led_pin);
-    gpio_init(offboard_led_pin);
-    gpio_set_dir(onboard_led_pin, GPIO_OUT);
-    gpio_set_dir(offboard_led_pin, GPIO_OUT);
-
+    pico_led_init();
     while(true) {
-        led_on(onboard_led_pin);
+        pico_led_toggle(true);
         sleep_ms(1000);
-        led_off(onboard_led_pin);
-        led_on(offboard_led_pin);
-        sleep_ms(1000);
-        led_off(offboard_led_pin);
+        pico_led_toggle(false);
     }
     return 0;
 }
