@@ -1,30 +1,46 @@
 .pio_version 0
 
 .program blink
-    pull block
-    out y, 32
 
+; main loop
 .wrap_target
-    mov x, y
-    set pins, 1 ; Turn LED on
+    set y, 31 ; Assign int 31 to Scratch Y
+    set pins, 0 [31]; Turn LED off, 31 clock cycle delay
 
 off_loop:
-    jmp x-- off_loop
-    mov x, y
-    set pins, 0 ; Turn LED off
+    jmp y-- off_loop [31] ; decrement int in Scratch Y with a delay of 31 clock cycles
+    set y, 31 ; Assign int 31 to Scratch Y again, just as we did at the beginning so we have something to count down
+    nop [31] ; waste time for 31 clock cycles
+    set pins, 1 [31] ; Turn LED on, 31 clock cycle delay
 
 on_loop:
-    jmp x-- on_loop
+    jmp y-- on_loop [31] ; decrement Scratch Y for 31 clock cycles
 
 .wrap ; Infinite loop
 
 % c-sdk {
-static inline void blink_program_init(PIO pio, uint sm, uint offset, uint pin) {
-    pio_gpio_init(pio, pin);
-    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+#include "hardware/clocks.h"
+
+static inline void blink_program_init(PIO pio, uint sm, uint offset, uint pin, float freq) {
+    // Baseline config
     pio_sm_config c = blink_program_get_default_config(offset);
+
+    // Assign `pin` to the state machines SET pins
     sm_config_set_set_pins(&c, pin, 1);
+
+    // Initialize/Map the GPIO pin to our PIO
+    pio_gpio_init(pio, pin);
+    // Set the pin direction to "OUTPUT" for this PIO and SM
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+
+    // Divide our current system clock speed in hz by our desired frequency in hz
+    // This is used to set the desired clock speed at which our state machine should run
+    float div = clock_get_hz(clk_sys) / freq;
+    sm_config_set_clkdiv(&c, div);
+
+    // Initialize our state machine for this PIO
     pio_sm_init(pio, sm, offset, &c);
+    // Enable the state machine so that our assembly will execute
     pio_sm_set_enabled(pio, sm, true);
 }
 %}
